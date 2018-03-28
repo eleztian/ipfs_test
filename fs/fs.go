@@ -1,20 +1,6 @@
-/*
- * hellofs.go
- *
- * Copyright 2017 Bill Zissimopoulos
- */
-/*
- * This file is part of Cgofuse.
- *
- * It is licensed under the MIT license. The full license text can be found
- * in the License.txt file at the root of this project.
- */
-
-package main
+package fs
 
 import (
-	"os"
-
 	"github.com/billziss-gh/cgofuse/fuse"
 )
 
@@ -23,11 +9,12 @@ const (
 	contents = "hello, world\n"
 )
 
-type Hellofs struct {
+type SuFS struct {
 	fuse.FileSystemBase
 }
 
-func (self *Hellofs) Open(path string, flags int) (errc int, fh uint64) {
+
+func (self *SuFS) Open(path string, flags int) (errc int, fh uint64) {
 	switch path {
 	case "/" + filename:
 		return 0, 0
@@ -36,7 +23,7 @@ func (self *Hellofs) Open(path string, flags int) (errc int, fh uint64) {
 	}
 }
 
-func (self *Hellofs) Getattr(path string, stat *fuse.Stat_t, fh uint64) (errc int) {
+func (self *SuFS) Getattr(path string, stat *fuse.Stat_t, fh uint64) (errc int) {
 	switch path {
 	case "/":
 		stat.Mode = fuse.S_IFDIR | 0555
@@ -50,7 +37,7 @@ func (self *Hellofs) Getattr(path string, stat *fuse.Stat_t, fh uint64) (errc in
 	}
 }
 
-func (self *Hellofs) Read(path string, buff []byte, ofst int64, fh uint64) (n int) {
+func (self *SuFS) Read(path string, buff []byte, ofst int64, fh uint64) (n int) {
 	endofst := ofst + int64(len(buff))
 	if endofst > int64(len(contents)) {
 		endofst = int64(len(contents))
@@ -62,7 +49,7 @@ func (self *Hellofs) Read(path string, buff []byte, ofst int64, fh uint64) (n in
 	return
 }
 
-func (self *Hellofs) Readdir(path string,
+func (self *SuFS) Readdir(path string,
 	fill func(name string, stat *fuse.Stat_t, ofst int64) bool,
 	ofst int64,
 	fh uint64) (errc int) {
@@ -72,8 +59,5 @@ func (self *Hellofs) Readdir(path string,
 	return 0
 }
 
-func main() {
-	hellofs := &Hellofs{}
-	host := fuse.NewFileSystemHost(hellofs)
-	host.Mount("", os.Args[1:])
-}
+
+var _ fuse.FileSystemInterface = (*SuFS)(nil)
