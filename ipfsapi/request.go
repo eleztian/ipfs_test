@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	IPFS_API_URL    = "http://127.0.0.1:5001/api"
+	IPFS_API_URL    = "http://127.0.0.1:5001"
 	IPFS_VERSION_V0 = "v0"
 )
 

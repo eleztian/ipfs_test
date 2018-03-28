@@ -220,3 +220,15 @@ func TestPubSub(t *testing.T) {
 
 	is.Nil(sub.Cancel())
 }
+
+func TestShell_FileList(t *testing.T) {
+	r, err := NewClient(host).FileList(examplesHash)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	for _, v := range r.Links {
+		fmt.Println(v)
+	}
+	fmt.Println(r.Type, r.Size, r.Hash)
+}
