@@ -5,6 +5,18 @@ import (
 	"encoding/json"
 )
 
+type PinType string
+
+const (
+	DirectPin    PinType = "direct"
+	RecursivePin         = "recursive"
+	IndirectPin          = "indirect"
+)
+
+type PinInfo struct {
+	Type PinType
+}
+
 // 将path对象定位到本地存储器
 func (c *Client) Pin(path string) error {
 	req := NewRequest(context.Background(), c.url, "pin/add", path)

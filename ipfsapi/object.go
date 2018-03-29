@@ -39,18 +39,6 @@ const (
 	TSymlink
 )
 
-type PinType string
-
-const (
-	DirectPin    PinType = "direct"
-	RecursivePin         = "recursive"
-	IndirectPin          = "indirect"
-)
-
-type PinInfo struct {
-	Type PinType
-}
-
 // PatchRmLink 在文件夹中删除一个子对象,返回新的对象hash
 func (c *Client) PatchRmLink(root string, args ...string) (*LsObject, error) {
 	cmdArgs := append([]string{root}, args...)
@@ -278,4 +266,8 @@ func (c *Client) ObjectStat(key string) (*ObjectStat, error) {
 	}
 
 	return stat, nil
+}
+
+func FilesStat(path string)  {
+	
 }
