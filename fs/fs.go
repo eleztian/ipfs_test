@@ -6,6 +6,10 @@ import (
 	"tab/ipfs_test/fuse/cgofuse"
 	"tab/ipfs_test/ipfs"
 
+	"io"
+	"io/ioutil"
+	"strings"
+
 	"github.com/ipfs/go-ipfs/unixfs/pb"
 )
 
@@ -28,7 +32,6 @@ func (self *SuFS) Open(path string, flags int) (errc int, fh uint64) {
 	if name == "" {
 		return 0, 0
 	}
-
 	//switch path {
 	//case "/" + filename:
 	//	return 0, 0
@@ -39,19 +42,24 @@ func (self *SuFS) Open(path string, flags int) (errc int, fh uint64) {
 }
 
 func (sf *SuFS) Getattr(path string, stat *cgofuse.Stat_t, fh uint64) (errc int) {
-	if path == "/" || path == ""{
+	if path == "/" || path == "" {
 		stat.Mode = cgofuse.S_IFDIR | 0555
 		return 0
 	}
 	path = getPath(path)
 	i, ok := sf.Objects[path]
+	var itype unixfs_pb.Data_DataType
 	if !ok {
-		fmt.Println("----", path)
-		stat.Mode = cgofuse.S_IFDIR | 0555
-		return 0
+		fmt.Println("do not exit", path)
+		itype, _ = sf.IPFSc.GetType(path)
+	} else {
+		fmt.Println("--find", path)
+		itype = i.Type
+		stat.Size = int64(i.Size)
+		fmt.Println("Size: ", i.Size)
+		stat.Hash = i.Hash
 	}
-
-	switch i.Type {
+	switch itype {
 	case unixfs_pb.Data_Directory:
 		stat.Mode = cgofuse.S_IFDIR | 0555
 	case unixfs_pb.Data_File:
@@ -63,28 +71,36 @@ func (sf *SuFS) Getattr(path string, stat *cgofuse.Stat_t, fh uint64) (errc int)
 	default:
 		stat.Mode = cgofuse.S_IFREG | 0444
 	}
-	stat.Size = int64(i.Size)
-	stat.Hash = i.Hash
+
 	return 0
 }
 
-func (self *SuFS) Read(path string, buff []byte, ofst int64, fh uint64) (n int) {
-	endofst := ofst + int64(len(buff))
-
-	//r, err := self.IpfsClient.BlockGet()
-
-	if endofst > int64(len(contents)) {
-		endofst = int64(len(contents))
-	}
-	if endofst < ofst {
+func (sf *SuFS) Read(path string, buff []byte, ofst int64, fh uint64) (n int) {
+	fmt.Println("Read................")
+	path = getPath(path)
+	fmt.Println(path)
+	r, err := sf.IPFSc.Cat(path)
+	if err != nil {
+		fmt.Println(err)
 		return 0
 	}
-	n = copy(buff, contents[ofst:endofst])
-	return
+	fmt.Println(r.Size())
+	r.Seek(ofst, io.SeekStart)
+	r2 := io.LimitReader(r, int64(len(buff)))
+	b, err := ioutil.ReadAll(r2)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(string(b))
+	return copy(buff, b)
 }
 
 func getPath(p string) string {
-	return examplesHash + p
+	if p == "/" {
+		return examplesHash
+	}
+	p = filepath.Join(examplesHash, p)
+	return strings.Replace(p, "\\", "/", -1)
 }
 
 func (sf *SuFS) Readdir(path string,
@@ -104,9 +120,13 @@ func (sf *SuFS) Readdir(path string,
 	sf.Objects[path] = r.Self
 	for _, v := range r.Links {
 		fmt.Println(v)
-		fmt.Println(filepath.Join(path, v.Name))
-		sf.Objects[filepath.Join(path, v.Name)] = v
-		fill(v.Name, nil, 0)
+		tt := filepath.Join(path, v.Name)
+		tt = strings.Replace(tt, "\\", "/", -1)
+		sf.Objects[tt] = v
+		fill(v.Name, &cgofuse.Stat_t{
+			Size: int64(v.Size),
+			Hash: v.Hash,
+		}, 0)
 	}
 
 	fill(filename, nil, 0)

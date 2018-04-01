@@ -9,6 +9,8 @@ import (
 	"github.com/ipfs/go-ipfs/path"
 
 	"github.com/pkg/errors"
+	"github.com/ipfs/go-ipfs/core/coreunix"
+	"github.com/ipfs/go-ipfs/unixfs/io"
 )
 
 type ContextIPFS struct {
@@ -38,7 +40,10 @@ func (c *ContextIPFS) GetDirLinksInfo(pathH string) (res *ObjectInfo, err error)
 	if err != nil {
 		return
 	}
+
 	fType := unixFSNode.GetType()
+
+	res = &ObjectInfo{Self:&LinkInfo{}}
 	res.Self.Type = fType
 	res.Self.Size = unixFSNode.GetFilesize()
 	res.Self.Hash = merkleNode.String()
@@ -80,4 +85,39 @@ func (c *ContextIPFS) GetType(pathH string) (res unixfs_pb.Data_DataType, err er
 	}
 	res = unixFSNode.GetType()
 	return
+}
+
+
+func (c *ContextIPFS) Cat(path string) (io.DagReader, error) {
+	return coreunix.Cat(c.Ctx, c.Node, path)
+	//if max == 0 {
+	//	return nil, 0, nil
+	//}
+	//read, err :=
+	//if err != nil {
+	//	return nil, 0, err
+	//}
+	//if offset > int64(read.Size()) {
+	//	return nil, read.Size(), errors.New("no more data to read")
+	//}
+	//count, err := read.Seek(offset, io.SeekStart)
+	//if err != nil {
+	//	return nil, 0, err
+	//}
+	//offset = 0
+	//
+	//size := uint64(read.Size() - uint64(count))
+	//length += size
+	//if max > 0 && length >= uint64(max) {
+	//	var r io.Reader = read
+	//	if overshoot := int64(length - uint64(max)); overshoot != 0 {
+	//		r = io.LimitReader(read, int64(size)-overshoot)
+	//		length = uint64(max)
+	//	}
+	//	readers = append(readers, r)
+	//	break
+	//}
+	//readers = append(readers, read)
+	//
+	//return readers, length, nil
 }
