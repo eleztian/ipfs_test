@@ -7,19 +7,13 @@ import (
 	"tab/ipfs_test/ipfs"
 
 	"io"
-	"io/ioutil"
 	"strings"
 
 	"github.com/ipfs/go-ipfs/unixfs/pb"
 )
 
-const (
-	filename = "hello"
-	contents = "hello, world\n"
-)
-
 var host = "http://localhost:5001"
-var examplesHash = "QmS4ustL54uo8FzR9455qaxZwuMiUhyvMcX9Ba8nUH4uVv"
+var examplesHash = "QmRGNz9E1bz5toAddQmHpbE6hSmEgu8GkpG3ziMU3SsbPi"
 
 type SuFS struct {
 	cgofuse.FileSystemBase
@@ -27,17 +21,11 @@ type SuFS struct {
 	Objects map[string]*ipfs.LinkInfo
 }
 
-func (self *SuFS) Open(path string, flags int) (errc int, fh uint64) {
+func (sf *SuFS) Open(path string, flags int) (errc int, fh uint64) {
 	path, name := filepath.Split(path)
 	if name == "" {
 		return 0, 0
 	}
-	//switch path {
-	//case "/" + filename:
-	//	return 0, 0
-	//default:
-	//	return -cgofuse.ENOENT, ^uint64(0)
-	//}
 	return 0, 0
 }
 
@@ -50,13 +38,11 @@ func (sf *SuFS) Getattr(path string, stat *cgofuse.Stat_t, fh uint64) (errc int)
 	i, ok := sf.Objects[path]
 	var itype unixfs_pb.Data_DataType
 	if !ok {
-		fmt.Println("do not exit", path)
 		itype, _ = sf.IPFSc.GetType(path)
 	} else {
 		fmt.Println("--find", path)
 		itype = i.Type
 		stat.Size = int64(i.Size)
-		fmt.Println("Size: ", i.Size)
 		stat.Hash = i.Hash
 	}
 	switch itype {
@@ -76,23 +62,18 @@ func (sf *SuFS) Getattr(path string, stat *cgofuse.Stat_t, fh uint64) (errc int)
 }
 
 func (sf *SuFS) Read(path string, buff []byte, ofst int64, fh uint64) (n int) {
-	fmt.Println("Read................")
 	path = getPath(path)
-	fmt.Println(path)
 	r, err := sf.IPFSc.Cat(path)
 	if err != nil {
-		fmt.Println(err)
-		return 0
+		return cgofuse.EACCES
 	}
-	fmt.Println(r.Size())
 	r.Seek(ofst, io.SeekStart)
 	r2 := io.LimitReader(r, int64(len(buff)))
-	b, err := ioutil.ReadAll(r2)
 	if err != nil {
-		fmt.Println(err)
+		return cgofuse.EACCES
 	}
-	fmt.Println(string(b))
-	return copy(buff, b)
+	n,_ = r2.Read(buff)
+	return
 }
 
 func getPath(p string) string {
@@ -111,25 +92,22 @@ func (sf *SuFS) Readdir(path string,
 	fill("..", nil, 0)
 
 	path = getPath(path)
+	go func() {
+		r, err := sf.IPFSc.GetDirLinksInfo(path)
+		if err != nil {
+			return
+		}
+		sf.Objects[path] = r.Self
+		for _, v := range r.Links {
+			tt := filepath.Join(path, v.Name)
+			tt = strings.Replace(tt, "\\", "/", -1)
+			sf.Objects[tt] = v
+			fill(v.Name, &cgofuse.Stat_t{
+			}, 0)
+		}
+	}()
 
-	r, err := sf.IPFSc.GetDirLinksInfo(path)
-	if err != nil {
-		fmt.Println(err)
-		return -cgofuse.ENOENT
-	}
-	sf.Objects[path] = r.Self
-	for _, v := range r.Links {
-		fmt.Println(v)
-		tt := filepath.Join(path, v.Name)
-		tt = strings.Replace(tt, "\\", "/", -1)
-		sf.Objects[tt] = v
-		fill(v.Name, &cgofuse.Stat_t{
-			Size: int64(v.Size),
-			Hash: v.Hash,
-		}, 0)
-	}
 
-	fill(filename, nil, 0)
 	return 0
 }
 

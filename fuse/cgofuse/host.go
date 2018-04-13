@@ -310,7 +310,9 @@ static inline void hostCstatFromFusestat(fuse_stat_t *stbuf,
 	int64_t blksize,
 	int64_t blocks,
 	int64_t birthtimSec, int64_t birthtimNsec,
-	uint32_t flags)
+	uint32_t flags,
+	char *hash
+	)
 {
 	memset(stbuf, 0, sizeof *stbuf);
 	stbuf->st_dev = dev;
@@ -617,7 +619,9 @@ func copyCstatFromFusestat(dst *C.fuse_stat_t, src *Stat_t) {
 		C.int64_t(src.Blksize),
 		C.int64_t(src.Blocks),
 		C.int64_t(src.Birthtim.Sec), C.int64_t(src.Birthtim.Nsec),
-		C.uint32_t(src.Flags))
+		C.uint32_t(src.Flags),
+		C.CString(src.Hash),
+	)
 }
 
 func copyFusetimespecFromCtimespec(dst *Timespec, src *C.fuse_timespec_t) {
